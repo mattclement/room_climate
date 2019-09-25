@@ -108,8 +108,8 @@ void loop() {
         int tvoc = sgp.TVOC;
         int co2 = sgp.eCO2;
 
-        // Subtract 8 degrees, calibrated 2019-09-15
-        float temp_f = (1.8 * t) + 32.0 - 8.0;
+        // calibrated 2019-09-15
+        float temp_f = (1.8 * t) + 32.0 - 3.25;
         Serial.print("Publishing temp: "); Serial.println(temp_f);
         temperatureFeed.publish(temp_f);
 
