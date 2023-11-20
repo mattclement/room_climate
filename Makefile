@@ -19,9 +19,10 @@ install-board: ## Install the esp8266 board
 	$(CMD) core install --additional-urls http://arduino.esp8266.com/stable/package_esp8266com_index.json esp8266:esp8266 
 
 install-libs: ## Install the required libraries
-	$(CMD) lib install "Adafruit MQTT Library"
+	# $(CMD) lib install "Adafruit MQTT Library"
 	$(CMD) lib install "Adafruit SHT31 Library"
 	$(CMD) lib install "Adafruit SGP30 Sensor"
+	$(CMD) lib install "HomeKit-ESP8266"
 
 help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
