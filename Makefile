@@ -23,6 +23,7 @@ install-libs: ## Install the required libraries
 	$(CMD) lib install "Adafruit SHT31 Library"
 	$(CMD) lib install "Adafruit SGP30 Sensor"
 	$(CMD) lib install "HomeKit-ESP8266"
+	$(CMD) lib install "ESP8266 Influxdb"
 
 help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'

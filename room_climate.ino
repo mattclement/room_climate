@@ -37,20 +37,33 @@
 
 #include <Arduino.h>
 #include <arduino_homekit_server.h>
+#include <InfluxDbClient.h>
 #include "wifi_info.h"
 #include "Adafruit_SGP30.h"
 #include "Adafruit_SHT31.h"
-//include the Arduino library for your real sensor here, e.g. <DHT.h>
+
+#define INFLUXDB_URL "http://influxdb.nullroute.host:8086"
+// InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
+#define INFLUXDB_TOKEN "2cpGewEVxv-o1-kW2HT1dHMkTbaGbvr5RQvtv6sdJSfQ-BvnHPNvrKU7eJdl-_MBLwgne5196hR69n75cnmqvQ=="
+// InfluxDB 2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
+#define INFLUXDB_ORG "7e9bfbc3923ca88e"
+// InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
+#define INFLUXDB_BUCKET "measurements"
+
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
 #define LOG_D(fmt, ...)   printf_P(PSTR(fmt "\n") , ##__VA_ARGS__);
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_SGP30 sgp;
 
+Point influxData("measurements");
+
 void setup() {
 	Serial.begin(115200);
 	wifi_connect(); // in wifi_info.h
 	my_homekit_setup();
+
 	// Start sensors
 	if (! sht31.begin(0x44)) {
 		Serial.println("Temperature/Humidity (SHT31) sensor not found");
@@ -59,6 +72,16 @@ void setup() {
 	if (! sgp.begin()){
 		Serial.println("Air Quality (SGP30) sensor not found");
 		while (1);
+	}
+
+	influxData.addTag("location", "garage");
+	// Check server connection
+	if (client.validateConnection()) {
+		Serial.print("Connected to InfluxDB: ");
+		Serial.println(client.getServerUrl());
+	} else {
+		Serial.print("InfluxDB connection failed: ");
+		Serial.println(client.getLastErrorMessage());
 	}
 }
 
@@ -83,6 +106,18 @@ static uint32_t next_report_millis = 0;
 
 void my_homekit_setup() {
 	arduino_homekit_setup(&config);
+}
+
+void influx_report(float temp, float humidity, float co2, float voc) {
+	influxData.clearFields();
+	influxData.addField("temperature", temp);
+	influxData.addField("humidity", humidity);
+	influxData.addField("co2", co2);
+	influxData.addField("voc", voc);
+	if (!client.writePoint(influxData)) {
+		Serial.print("InfluxDB write failed: ");
+		Serial.println(client.getLastErrorMessage());
+	}
 }
 
 void my_homekit_loop() {
@@ -113,7 +148,6 @@ void my_homekit_report() {
 	LOG_D("Current humidity: %.1f%", humidity_value);
 	homekit_characteristic_notify(&cha_current_humidity, cha_current_humidity.value);
 
-	float h = sht31.readHumidity();
 	sgp.setHumidity(getAbsoluteHumidity(temperature_value, humidity_value));
 	sgp.IAQmeasure();
 
@@ -125,6 +159,8 @@ void my_homekit_report() {
 	cha_co2.value.float_value = sgp.eCO2;
 	LOG_D("Current CO2: %.1fppm", sgp.eCO2);
 	homekit_characteristic_notify(&cha_co2, cha_co2.value);
+
+	influx_report(temperature_value, humidity_value, sgp.eCO2, sgp.TVOC);
 }
 
 float read_humidity() {
